@@ -1,8 +1,8 @@
 // ─── Hagitori Extension SDK ────────────────────────────────────────────────
-// Tipos TypeScript para o runtime de extensões do Hagitori.
-// Gerado a partir das APIs registradas em src-tauri/crates/extensions/src/apis/
+// TypeScript types for the Hagitori extension runtime.
+// Generated from APIs registered in src-tauri/crates/extensions/src/apis/
 
-// ── Contrato da Extensão ───────────────────────────────────────────────────
+// ── Extension Contract ─────────────────────────────────────────────────────
 
 interface HagitoriExtension {
   getManga(url: string): Promise<Manga>;
@@ -11,7 +11,7 @@ interface HagitoriExtension {
   getDetails?(mangaId: string): Promise<MangaDetails>;
 }
 
-// ── Entidades ──────────────────────────────────────────────────────────────
+// ── Entities ───────────────────────────────────────────────────────────────
 
 interface MangaDetails {
   id: string;
@@ -25,7 +25,7 @@ interface MangaDetails {
   tags?: string[];
 }
 
-// ── Entidades ──────────────────────────────────────────────────────────────
+// ── Entities ───────────────────────────────────────────────────────────────
 
 declare class Manga {
   constructor(data: { id: string; name: string; cover?: string });
@@ -89,27 +89,95 @@ interface FetchResponse {
 
 declare function fetch(url: string, options?: FetchOptions): Promise<FetchResponse>;
 
-// ── HTML Parser ────────────────────────────────────────────────────────────
+// ── DOM (parseHtml) ────────────────────────────────────────────────────────
 
-interface HtmlElement {
+/**
+ * A mutable DOM element. Supports reading, CSS selection, attribute/content/tree
+ * manipulation, and traversal.
+ */
+declare class Element {
+  // ── Reading ──
+  /** Returns all text content of the element and its descendants. */
   text(): string;
+  /** Returns the innerHTML of the element. */
   html(): string;
+  /** Returns the outerHTML of the element (including the tag itself). */
   outerHtml(): string;
+  /** Returns the value of an attribute, or null if it doesn't exist. */
   attr(name: string): string | null;
-  select(css: string): HtmlElement[];
-  selectOne(css: string): HtmlElement | null;
+  /** Checks whether the element has a given attribute. */
+  hasAttribute(name: string): boolean;
+  /** Tag name of the element (lowercase). */
+  readonly tagName: string | null;
+
+  // ── CSS Selection ──
+  /** Selects all descendant elements matching the CSS selector. */
+  select(css: string): Element[];
+  /** Selects the first descendant element matching the CSS selector. */
+  selectOne(css: string): Element | null;
+
+  // ── Attribute Manipulation ──
+  /** Sets or updates an attribute on the element. */
+  setAttribute(name: string, value: string): void;
+  /** Removes an attribute from the element. */
+  removeAttribute(name: string): void;
+
+  // ── Content Manipulation ──
+  /** Replaces all content of the element with text. */
+  setText(text: string): void;
+  /** Replaces the innerHTML of the element (re-parses the HTML). */
+  setHtml(html: string): void;
+
+  // ── Tree Manipulation ──
+  /** Appends a child element at the end. */
+  appendChild(child: Element): void;
+  /** Prepends a child element at the beginning. */
+  prependChild(child: Element): void;
+  /** Inserts newChild before refChild among this element's children. */
+  insertBefore(newChild: Element, refChild: Element): void;
+  /** Removes this element from the DOM tree. */
+  remove(): void;
+  /** Removes all children of this element. */
+  removeChildren(): void;
+
+  // ── Traversal ──
+  /** Returns the parent element, or null if this is the root. */
+  parent(): Element | null;
+  /** Returns child elements (elements only, not text nodes). */
+  children(): Element[];
+  /** Returns the first child element. */
+  firstChild(): Element | null;
+  /** Returns the last child element. */
+  lastChild(): Element | null;
+  /** Returns the next sibling element. */
+  nextSibling(): Element | null;
+  /** Returns the previous sibling element. */
+  prevSibling(): Element | null;
 }
 
-interface HtmlDocument {
-  select(css: string): HtmlElement[];
-  selectOne(css: string): HtmlElement | null;
+/**
+ * A mutable DOM document, created via `parseHtml()`.
+ */
+declare class Document {
+  /** Selects all elements matching the CSS selector. */
+  select(css: string): Element[];
+  /** Selects the first element matching the CSS selector. */
+  selectOne(css: string): Element | null;
+  /** Returns all text content of the document. */
   text(): string;
+  /** Returns the serialized HTML of the document. */
   html(): string;
+  /** Serializes the entire document to HTML. */
+  serialize(): string;
+  /** Creates a new element (not attached to the tree). */
+  createElement(tag: string): Element;
+  /** Creates a new text node (not attached to the tree). */
+  createTextNode(text: string): Element;
 }
 
-declare function parseHtml(html: string): HtmlDocument;
+declare function parseHtml(html: string): Document;
 
-// ── Browser (requer capability "browser") ──────────────────────────────────
+// ── Browser (requires "browser" capability) ───────────────────────────────
 
 interface InterceptedRequest {
   url: string;
@@ -127,58 +195,84 @@ interface InterceptedResponse {
 }
 
 interface InterceptOptions {
-  /** Tempo de espera em segundos (default: 30). */
+  /** Wait time in seconds (default: 30). */
   waitTime?: number;
 }
 
 interface InterceptAllOptions {
-  /** Patterns de URL para interceptar requests. */
+  /** URL patterns to intercept requests. */
   requests?: string[];
-  /** Patterns de URL para interceptar responses. */
+  /** URL patterns to intercept responses. */
   responses?: string[];
-  /** Tempo de espera em segundos (default: 30). */
+  /** Wait time in seconds (default: 30). */
   waitTime?: number;
 }
 
 interface InterceptResult {
-  /** Requests interceptados. */
+  /** Intercepted requests. */
   readonly requests: InterceptedRequest[];
-  /** Responses interceptados. */
+  /** Intercepted responses. */
   readonly responses: InterceptedResponse[];
 }
 
 interface CloudflareBypassOptions {
-  /** Se true, tenta clicar automaticamente no checkbox do Turnstile (default: true). */
+  /** If true, automatically clicks the Turnstile checkbox (default: true). */
   autoClick?: boolean;
 }
 
 interface CloudflareResult {
-  /** Cookies extraídos como { name: value }. */
+  /** Extracted cookies as { name: value }. */
   readonly cookies: Record<string, string>;
-  /** User-agent do browser usado no bypass. */
+  /** User-agent of the browser used for bypass. */
   readonly userAgent: string;
-  /** Se true, o cookie cf_clearance foi encontrado. */
+  /** If true, the cf_clearance cookie was found. */
   readonly hasCfClearance: boolean;
-  /** Cookies formatados como header: "name=value; name2=value2". */
+  /** Cookies formatted as header: "name=value; name2=value2". */
   readonly cookieHeader: string;
 }
 
+interface NavigateOptions {
+  /** CSS selector to wait for before resolving (optional). */
+  waitForSelector?: string;
+  /** Timeout in milliseconds for waitForSelector (default: 10000). */
+  timeout?: number;
+}
+
 declare const browser: {
-  /** Intercepta requests que match os patterns ao navegar para a URL. */
+  /** Intercepts requests matching the patterns when navigating to the URL. */
   interceptRequests(url: string, patterns: string[], options?: InterceptOptions): Promise<string>;
-  /** Intercepta responses que match os patterns ao navegar para a URL. */
+  /** Intercepts responses matching the patterns when navigating to the URL. */
   interceptResponses(url: string, patterns: string[], options?: InterceptOptions): Promise<string>;
-  /** Intercepta requests e responses simultaneamente. */
+  /** Intercepts requests and responses simultaneously. */
   intercept(url: string, options?: InterceptAllOptions): Promise<InterceptResult>;
-  /** Retorna cookies do browser como JSON string { name: value }. */
+  /** Returns browser cookies as JSON string { name: value }. */
   getCookies(url: string): Promise<string>;
   /**
-   * Bypass de Cloudflare via disconnect CDP.
-   * Cookies e User-Agent são automaticamente propagados para o session store,
-   * então fetch() subsequentes já incluem os cookies.
+   * Cloudflare bypass via CDP disconnect.
+   * Cookies and User-Agent are automatically propagated to the session store,
+   * so subsequent fetch() calls already include the cookies.
    */
   bypassCloudflare(url: string, options?: CloudflareBypassOptions): Promise<CloudflareResult>;
-  /** Fecha o browser. */
+
+  // ── Active-page API ──
+  // These methods operate on a persistent page that stays open across calls,
+  // enabling multi-step interactions (navigate -> evaluate -> click -> …).
+
+  /** Navigates the active page to a URL. Optionally waits for a selector. */
+  navigate(url: string, options?: NavigateOptions): Promise<void>;
+  /**
+   * Executes JavaScript on the active page and returns the result as a JSON string.
+   * Use `JSON.parse()` on the result to get the actual value.
+   */
+  evaluate(jsCode: string): Promise<string>;
+  /** Clicks the first element matching the CSS selector on the active page. */
+  click(selector: string): Promise<void>;
+  /** Waits for a CSS selector to match an element. Returns true if found, false on timeout. */
+  waitForSelector(selector: string, timeout?: number): Promise<boolean>;
+  /** Polls until the JS expression returns a truthy value. Returns true if truthy, false on timeout. */
+  waitForFunction(jsCode: string, timeout?: number): Promise<boolean>;
+
+  /** Closes the browser (including the active page). */
   close(): Promise<void>;
 };
 
@@ -198,7 +292,7 @@ declare const session: {
   setUserAgent(domain: string, ua: string): void;
 };
 
-// ── Crypto (requer capability "crypto") ────────────────────────────────────
+// ── Crypto (requires "crypto" capability) ──────────────────────────────────
 
 declare const crypto: {
   md5(input: string): string;
@@ -213,10 +307,10 @@ declare const crypto: {
 // ── Date ───────────────────────────────────────────────────────────────────
 
 /**
- * Parseia uma string de data em diversos formatos.
- * Retorna formato "dd-MM-yyyy" ou null se falhar.
- * @param input - String de data (ISO, timestamps, formatos comuns)
- * @param format - Formato Java opcional (ex: "yyyy-MM-dd", "dd/MM/yyyy")
+ * Parses a date string in various formats.
+ * Returns "dd-MM-yyyy" format or null on failure.
+ * @param input - Date string (ISO, timestamps, common formats)
+ * @param format - Optional Java format (e.g., "yyyy-MM-dd", "dd/MM/yyyy")
  */
 declare function parseDate(input: string, format?: string): string | null;
 
@@ -253,7 +347,7 @@ declare const console: {
   error(...args: any[]): void;
 };
 
-// ── Variáveis injetadas pelo runtime ───────────────────────────────────────
+// ── Runtime-injected variables ─────────────────────────────────────────────
 
 declare const __lang__: string;
 declare const __id__: string;
