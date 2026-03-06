@@ -1,7 +1,6 @@
 // SakuraMangás — helper types, constants, and utility functions
 
 export const BASE_URL = "https://sakuramangas.org";
-export const CHAPTERS_API = `${BASE_URL}/dist/sakura/models/manga/.__obf__manga_capitulos.php`;
 export const WAIT_SECONDS = 10;
 export const WAIT_SECONDS_PAGES = 8;
 
@@ -21,39 +20,12 @@ export function generateXRealtime(): string {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Types
+// Cache (shared state between getManga → getDetails)
 // ═══════════════════════════════════════════════════════════════
 
-export interface AuthData {
-  proof: string;
-  challenge: string;
-  mangaApiId: string;
-}
-
-export interface ChapterData {
-  numero?: string;
-  number?: string;
-  data_timestamp?: number;
-  versoes?: Array<{
-    url?: string;
-    titulo?: string;
-    scans?: Array<{ nome?: string }>;
-  }>;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// Cache (shared state between getManga → getChapters → getPages)
-// ═══════════════════════════════════════════════════════════════
-
-export let cachedAuth: AuthData | null = null;
-export let cachedSecHeaders: Record<string, string> | null = null;
-export let cachedChaptersData: any = null;
 export let cachedMangaInfo: any = null;
 export let cfBypassed = false;
 
-export function setCachedAuth(v: AuthData | null) { cachedAuth = v; }
-export function setCachedSecHeaders(v: Record<string, string> | null) { cachedSecHeaders = v; }
-export function setCachedChaptersData(v: any) { cachedChaptersData = v; }
 export function setCachedMangaInfo(v: any) { cachedMangaInfo = v; }
 export function setCfBypassed(v: boolean) { cfBypassed = v; }
 
@@ -69,132 +41,7 @@ export function extractSlug(url: string): string {
   return url.replace(/^\//, "").replace(/\/$/, "");
 }
 
-/** Decode a x-www-form-urlencoded body into an object. */
-export function parseFormBody(body: string): Record<string, string> {
-  if (!body) return {};
-  const params: Record<string, string> = {};
-  for (const pair of body.split("&")) {
-    const parts = pair.split("=");
-    if (parts.length >= 2) {
-      params[decodeURIComponent(parts[0])] = decodeURIComponent(
-        parts.slice(1).join("=")
-      );
-    }
-  }
-  return params;
-}
 
-/** Parse the chapters API response into a typed array. */
-export function parseChaptersResponse(
-  data: any,
-  mangaId: string
-): { chapters: Chapter[]; hasMore: boolean } {
-  if (typeof data === "string") {
-    try {
-      data = JSON.parse(data);
-    } catch (e) {
-      throw new Error(`[SakuraMangás] failed to parse chapters response as JSON: ${e}`);
-    }
-  }
-
-  let chapterList: ChapterData[] = [];
-  let hasMore = false;
-
-  if (data?.data && Array.isArray(data.data)) {
-    chapterList = data.data;
-    hasMore = !!data.has_more;
-  } else if (Array.isArray(data)) {
-    chapterList = data;
-  }
-
-  const chapters: Chapter[] = [];
-  for (let i = 0; i < chapterList.length; i++) {
-    const ch = chapterList[i];
-    const chNum = ch.numero || ch.number || String(i + 1);
-
-    let chUrl = "";
-    let chTitle = "";
-    let scanlator: string | undefined;
-
-    if (ch.versoes && ch.versoes.length > 0) {
-      const versao = ch.versoes[0];
-      if (versao.url) {
-        chUrl = versao.url;
-        if (chUrl.startsWith("/")) chUrl = chUrl.substring(1);
-      }
-      if (versao.titulo) chTitle = versao.titulo;
-      if (versao.scans?.length && versao.scans[0].nome) {
-        scanlator = versao.scans[0].nome;
-      }
-    }
-
-    if (!chUrl) {
-      chUrl = `${mangaId}/${String(chNum).replace(".", "-")}`;
-    }
-
-    const date = ch.data_timestamp
-      ? parseDate(String(ch.data_timestamp)) ?? undefined
-      : undefined;
-
-    chapters.push(
-      new Chapter({
-        id: String(chUrl),
-        number: String(chNum),
-        name: mangaId,
-        title: chTitle || undefined,
-        date,
-        scanlator,
-      })
-    );
-  }
-
-  return { chapters, hasMore };
-}
-
-/** Extract auth data from an intercepted POST request. */
-export function extractAuth(
-  requests: any[],
-  fullUrl: string
-): { auth: AuthData; headers: Record<string, string> } | null {
-  for (const req of requests) {
-    if (!req.url.includes("__obf__manga_capitulos") || !req.postBody) continue;
-
-    const params = parseFormBody(req.postBody);
-    const auth: AuthData = {
-      proof: params.proof || "",
-      challenge: params.challenge || "",
-      mangaApiId: params.manga_id || "",
-    };
-
-    const headers: Record<string, string> = {
-      Accept: "*/*",
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
-      Origin: BASE_URL,
-      Referer: fullUrl,
-      "X-Requested-With": "XMLHttpRequest",
-      "Sec-Fetch-Dest": "empty",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Site": "same-origin",
-    };
-
-    if (req.headers) {
-      for (const [key, value] of Object.entries(req.headers)) {
-        const k = key.toLowerCase();
-        if (k === "x-csrf-token") headers["X-CSRF-Token"] = value as string;
-        else if (k === "x-client-signature") headers["X-Client-Signature"] = value as string;
-        else if (k === "x-verification-key-1") headers["X-Verification-Key-1"] = value as string;
-        else if (k === "x-verification-key-2") headers["X-Verification-Key-2"] = value as string;
-        else if (k === "x-requested-with" && value !== "XMLHttpRequest") {
-          headers["X-Requested-With"] = value as string;
-        }
-      }
-    }
-
-    return { auth, headers };
-  }
-  return null;
-}
 
 /** Try to parse a JSON body from a response, returning null on failure. */
 export function tryParseBody(body: any): any | null {
@@ -213,14 +60,25 @@ export function findMangaResponse(responses: any[]): any | null {
   return null;
 }
 
-/** Find the first response containing chapters data. */
-export function findChaptersResponse(responses: any[]): any | null {
-  for (const resp of responses) {
-    if (!(resp.url || "").includes("__obf__manga_capitulos")) continue;
-    const body = tryParseBody(resp.body);
-    if (body) return body;
-  }
-  return null;
+/** Converts DOM-scraped chapter data into Chapter objects. */
+export function scrapedToChapters(
+  scraped: Array<{ id: string; url: string; title: string }>,
+  mangaId: string,
+): Chapter[] {
+  return scraped.map((ch, i) => {
+    let url = ch.url;
+    if (url.startsWith("/")) url = url.substring(1);
+
+    const parts = url.replace(/\/$/, "").split("/");
+    const chapterNum = parts[parts.length - 1] || String(i + 1);
+
+    return new Chapter({
+      id: url || `${mangaId}/${ch.id}`,
+      number: chapterNum,
+      name: mangaId,
+      title: ch.title || undefined,
+    });
+  });
 }
 
 /**
