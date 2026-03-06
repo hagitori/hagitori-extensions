@@ -206,27 +206,63 @@ resp.json();     // any
 resp.bytes();    // number[]
 ```
 
-### HTML Parser — `parseHtml()`
+### DOM — `parseHtml()`
+
+Parses HTML into a **mutable DOM** tree. Supports reading, CSS selection, attribute/content/tree manipulation, and traversal.
 
 ```typescript
 const doc = parseHtml(htmlString);
 
-doc.select("div.item");        // HtmlElement[]
-doc.selectOne("h1.title");     // HtmlElement | null
-doc.text();                    // string
-doc.html();                    // string
+// ── Selection ──
+doc.select("div.item");          // Element[]
+doc.selectOne("h1.title");       // Element | null
 
-element.text();                // inner text
-element.html();                // inner HTML
-element.outerHtml();           // outer HTML
-element.attr("href");          // string | null
-element.select("a");           // HtmlElement[]
-element.selectOne("span");     // HtmlElement | null
+// ── Reading ──
+doc.text();                      // all text content
+doc.html();                      // serialized HTML
+doc.serialize();                 // full document HTML
+
+element.text();                  // inner text
+element.html();                  // innerHTML
+element.outerHtml();             // outerHTML (includes tag)
+element.attr("href");            // string | null
+element.hasAttribute("class");   // boolean
+element.tagName;                 // "div", "a", etc.
+element.select("a");             // Element[]
+element.selectOne("span");       // Element | null
+
+// ── Mutation ──
+element.setAttribute("class", "active");
+element.removeAttribute("hidden");
+element.setText("new text");
+element.setHtml("<b>bold</b>");
+
+// ── Tree manipulation ──
+const newEl = doc.createElement("div");
+const textNode = doc.createTextNode("hello");
+element.appendChild(newEl);
+element.prependChild(textNode);
+element.insertBefore(newChild, refChild);
+element.remove();
+element.removeChildren();
+
+// ── Traversal ──
+element.parent();                // Element | null
+element.children();              // Element[]
+element.firstChild();            // Element | null
+element.lastChild();             // Element | null
+element.nextSibling();           // Element | null
+element.prevSibling();           // Element | null
+
+// ── Serialize after mutations ──
+const finalHtml = doc.serialize();
 ```
 
 ### Browser — `browser`
 
 Requires `"browser"` capability.
+
+#### Interception API
 
 ```typescript
 // intercept network requests matching URL patterns
@@ -247,25 +283,63 @@ const result = await browser.intercept(url, {
 });
 result.requests;   // InterceptedRequest[]
 result.responses;  // InterceptedResponse[]
+```
 
+#### Cloudflare Bypass
+
+```typescript
 // bypass Cloudflare protection (opens headful browser, clicks Turnstile)
 const cf = await browser.bypassCloudflare(url, { autoClick?: true });
 cf.cookies;        // { [name]: value }
 cf.userAgent;      // string
 cf.hasCfClearance; // boolean
 cf.cookieHeader;   // "name=value; name2=value2"
+```
 
+#### Active-Page API
+
+These methods operate on a **persistent page** that stays open across calls, enabling multi-step DOM interactions (navigate → evaluate → click → wait → repeat).
+
+```typescript
+// navigate the active page, optionally wait for an element
+await browser.navigate(url, {
+  waitForSelector?: string,  // CSS selector to wait for
+  timeout?: number,          // ms (default 10000)
+});
+
+// execute JS on the active page and get the result (JSON string)
+const result = JSON.parse(await browser.evaluate(`
+  JSON.stringify(document.querySelectorAll('.item').length)
+`));
+
+// click an element on the active page
+await browser.click("#load-more");
+
+// wait for an element to appear (returns true/false)
+const found = await browser.waitForSelector(".new-items", 15000);
+
+// wait for a JS expression to become truthy (returns true/false)
+const ready = await browser.waitForFunction(
+  `document.querySelectorAll('.item').length > 10`,
+  15000
+);
+```
+
+#### Other
+
+```typescript
 // get cookies for a URL
 const cookies: string = await browser.getCookies(url); // JSON string
 
-// close the browser
+// close the browser (and active page)
 await browser.close();
 ```
 
 **Notes:**
-- `bypassCloudflare()` keeps the browser alive — subsequent `intercept*()` calls reuse it, inheriting CF cookies.
+- `bypassCloudflare()` keeps the browser alive — subsequent calls reuse it, inheriting CF cookies.
 - `intercept*()` calls auto-detect CF challenges and solve them in-place before intercepting.
 - `interceptRequests()` and `interceptResponses()` return raw JSON strings; parse with `JSON.parse()`.
+- Active-page methods (`navigate`, `evaluate`, `click`, `waitFor*`) share the same persistent page. Calling `browser.close()` closes it.
 
 ### Cookies — `cookies`
 
