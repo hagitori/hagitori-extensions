@@ -1,6 +1,5 @@
 // ─── Hagitori Extension SDK ────────────────────────────────────────────────
 // TypeScript types for the Hagitori extension runtime.
-// Generated from APIs registered in src-tauri/crates/extensions/src/apis/
 
 // ── Extension Contract ─────────────────────────────────────────────────────
 
@@ -91,87 +90,52 @@ declare function fetch(url: string, options?: FetchOptions): Promise<FetchRespon
 
 // ── DOM (parseHtml) ────────────────────────────────────────────────────────
 
-/**
- * A mutable DOM element. Supports reading, CSS selection, attribute/content/tree
- * manipulation, and traversal.
- */
 declare class Element {
   // ── Reading ──
-  /** Returns all text content of the element and its descendants. */
   text(): string;
-  /** Returns the innerHTML of the element. */
   html(): string;
-  /** Returns the outerHTML of the element (including the tag itself). */
   outerHtml(): string;
-  /** Returns the value of an attribute, or null if it doesn't exist. */
   attr(name: string): string | null;
-  /** Checks whether the element has a given attribute. */
   hasAttribute(name: string): boolean;
-  /** Tag name of the element (lowercase). */
+  attributes(): Record<string, string>;
   readonly tagName: string | null;
 
   // ── CSS Selection ──
-  /** Selects all descendant elements matching the CSS selector. */
   select(css: string): Element[];
-  /** Selects the first descendant element matching the CSS selector. */
   selectOne(css: string): Element | null;
 
   // ── Attribute Manipulation ──
-  /** Sets or updates an attribute on the element. */
   setAttribute(name: string, value: string): void;
-  /** Removes an attribute from the element. */
   removeAttribute(name: string): void;
 
   // ── Content Manipulation ──
-  /** Replaces all content of the element with text. */
   setText(text: string): void;
-  /** Replaces the innerHTML of the element (re-parses the HTML). */
   setHtml(html: string): void;
 
   // ── Tree Manipulation ──
-  /** Appends a child element at the end. */
   appendChild(child: Element): void;
-  /** Prepends a child element at the beginning. */
   prependChild(child: Element): void;
-  /** Inserts newChild before refChild among this element's children. */
   insertBefore(newChild: Element, refChild: Element): void;
-  /** Removes this element from the DOM tree. */
+  insertAfter(newChild: Element, refChild: Element): void;
   remove(): void;
-  /** Removes all children of this element. */
   removeChildren(): void;
 
   // ── Traversal ──
-  /** Returns the parent element, or null if this is the root. */
   parent(): Element | null;
-  /** Returns child elements (elements only, not text nodes). */
   children(): Element[];
-  /** Returns the first child element. */
   firstChild(): Element | null;
-  /** Returns the last child element. */
   lastChild(): Element | null;
-  /** Returns the next sibling element. */
   nextSibling(): Element | null;
-  /** Returns the previous sibling element. */
   prevSibling(): Element | null;
 }
 
-/**
- * A mutable DOM document, created via `parseHtml()`.
- */
 declare class Document {
-  /** Selects all elements matching the CSS selector. */
   select(css: string): Element[];
-  /** Selects the first element matching the CSS selector. */
   selectOne(css: string): Element | null;
-  /** Returns all text content of the document. */
   text(): string;
-  /** Returns the serialized HTML of the document. */
   html(): string;
-  /** Serializes the entire document to HTML. */
   serialize(): string;
-  /** Creates a new element (not attached to the tree). */
   createElement(tag: string): Element;
-  /** Creates a new text node (not attached to the tree). */
   createTextNode(text: string): Element;
 }
 
