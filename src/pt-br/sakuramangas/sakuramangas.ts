@@ -52,14 +52,23 @@ class SakuraMangasExtension implements HagitoriExtension {
 
     // Navigate and wait for initial chapters to render
     console.log(`[SakuraMangás] getChapters: navigating to ${fullUrl}`);
-    await browser.navigate(fullUrl, {
-      waitForSelector: chapterSelector,
-      timeout: 30_000,
-    });
+    await browser.navigate(fullUrl);
+    await h.solveRateLimitSliderIfPresent("getChapters:navigate", 4_000);
+    let chaptersReady = await browser.waitForSelector(chapterSelector, 30_000);
+    if (!chaptersReady) {
+      await h.solveRateLimitSliderIfPresent("getChapters:chapter-list-timeout", 2_000);
+      chaptersReady = await browser.waitForSelector(chapterSelector, 10_000);
+    }
+    if (!chaptersReady) {
+      throw new Error(
+        "Não foi possível carregar a lista de capítulos da Sakura Mangás."
+      );
+    }
     console.log("[SakuraMangás] getChapters: navigate done, waiting for ver-mais button...");
 
     // Wait for the "ver mais" button to become VISIBLE (not just exist in DOM).
     // The site creates it hidden and shows it via JS after the AJAX confirms has_more.
+    await h.solveRateLimitSliderIfPresent("getChapters:before-ver-mais", 1_000);
     const hasVerMaisVisible = await browser.waitForFunction(
       `(() => { const btn = document.querySelector('#ver-mais'); return !!(btn && btn.offsetParent !== null); })()`,
       8000,
@@ -87,6 +96,8 @@ class SakuraMangasExtension implements HagitoriExtension {
     const maxIterations = 200;
 
     for (let i = 0; i < maxIterations; i++) {
+      await h.solveRateLimitSliderIfPresent(`getChapters:round-${i}`, 800);
+
       // Scrape current chapters from the DOM
       const raw = await browser.evaluate(`
         JSON.stringify(
@@ -130,11 +141,29 @@ class SakuraMangasExtension implements HagitoriExtension {
 
       // Click "ver mais" and wait for new chapters to appear
       console.log(`[SakuraMangás] getChapters: clicking ver-mais...`);
+      await h.solveRateLimitSliderIfPresent(`getChapters:before-click-${i}`, 800);
       await browser.click("#ver-mais");
-      const waitResult = await browser.waitForFunction(
+      await sleep(400);
+      await h.solveRateLimitSliderIfPresent(`getChapters:after-click-${i}`, 2_000);
+
+      let waitResult = await browser.waitForFunction(
         `document.querySelectorAll('${chapterSelector}').length > ${count}`,
         15_000,
       );
+      if (!waitResult) {
+        const solvedLateChallenge = await h.solveRateLimitSliderIfPresent(
+          `getChapters:late-challenge-${i}`,
+          1_000,
+        );
+        if (solvedLateChallenge) {
+          console.log("[SakuraMangás] getChapters: retrying ver-mais after slider...");
+          await browser.click("#ver-mais");
+          waitResult = await browser.waitForFunction(
+            `document.querySelectorAll('${chapterSelector}').length > ${count}`,
+            15_000,
+          );
+        }
+      }
       console.log(`[SakuraMangás] getChapters: waitForFunction result=${waitResult}`);
       await sleep(600);
     }
@@ -161,45 +190,65 @@ class SakuraMangasExtension implements HagitoriExtension {
 
     await h.ensureCloudflareBypass();
 
-    // Intercept to get the image hash from /imagens/ requests
-    const pageData = await browser.intercept(fullUrl, {
-      requests: ["/imagens/"],
-      waitTime: h.WAIT_SECONDS_PAGES,
-    });
+    const openChapterAndSolveCaptcha = async (context: string): Promise<void> => {
+      console.log(`[SakuraMangás] getPages: opening chapter (${context})...`);
+      await browser.navigate(fullUrl);
+      await h.solveRateLimitSliderIfPresent(`getPages:${context}`, 4_000);
+    };
 
-    let imageHash: string | null = null;
-    let imageExtension = "jpg";
+    const interceptImageAsset = async () => {
+      const pageData = await browser.intercept(fullUrl, {
+        requests: ["/imagens/"],
+        waitTime: h.WAIT_SECONDS_PAGES,
+      });
+      return h.findChapterImageAssetFromRequests(pageData.requests);
+    };
 
-    for (const req of pageData.requests) {
-      const match = req.url.match(
-        /\/imagens\/([a-f0-9]{32,})\/(\d{3})\.(jpg|png|webp|gif)/i
+    await openChapterAndSolveCaptcha("captcha-check");
+
+    let imageAsset = await interceptImageAsset();
+    if (!imageAsset) {
+      console.warn(
+        "[SakuraMangás] getPages: image hash not found after first intercept, retrying after captcha check..."
       );
-      if (match) {
-        imageHash = match[1];
-        imageExtension = match[3].toLowerCase();
-        break;
-      }
+      await openChapterAndSolveCaptcha("captcha-retry");
+      imageAsset = await interceptImageAsset();
     }
 
-    if (!imageHash) {
+    if (!imageAsset) {
       throw new Error(
         "Não foi possível obter o hash da imagem. Tente novamente."
       );
     }
-    console.log(`[SakuraMangás] getPages: hash=${imageHash}, ext=${imageExtension}`);
 
-    // Navigate with active-page to get numPages from the scroll counter
-    console.log("[SakuraMangás] getPages: navigating for counter...");
-    await browser.navigate(fullUrl, {
-      waitForSelector: ".div-modo.div-scroll",
-      timeout: 15_000,
-    });
+    console.log(
+      `[SakuraMangás] getPages: hash=${imageAsset.hash}, ext=${imageAsset.extension}`
+    );
+
+    // Use the already opened chapter page to get numPages from the scroll counter.
+    console.log("[SakuraMangás] getPages: waiting for counter...");
+    let scrollButtonReady = await browser.waitForSelector(
+      "button.toggle-btn.div-scroll",
+      15_000,
+    );
+    if (!scrollButtonReady) {
+      await h.solveRateLimitSliderIfPresent("getPages:scroll-button-timeout", 2_000);
+      scrollButtonReady = await browser.waitForSelector(
+        "button.toggle-btn.div-scroll",
+        10_000,
+      );
+    }
+    if (!scrollButtonReady) {
+      throw new Error(
+        "Não foi possível carregar o botão de leitura da Sakura Mangás."
+      );
+    }
 
     // Force the Scroll button to a fixed position in the viewport.
     // The page loads scrolled down past the button, and scrollIntoView doesn't
     // work reliably for it. position:fixed guarantees positive viewport coords.
     await browser.evaluate(`(() => {
-      const btn = document.querySelector('.div-modo.div-scroll');
+      const btn = document.querySelector('button.toggle-btn.div-scroll');
       if (!btn) return false;
       btn.style.position = 'fixed';
       btn.style.top = '200px';
@@ -213,9 +262,17 @@ class SakuraMangasExtension implements HagitoriExtension {
     let numPages = 0;
     const maxAttempts = 8;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      await h.solveRateLimitSliderIfPresent(
+        `getPages:before-scroll-click-${attempt}`,
+        800,
+      );
       console.log(`[SakuraMangás] getPages: clicking scroll button (attempt ${attempt + 1}/${maxAttempts})...`);
-      await browser.click(".div-modo.div-scroll");
+      await browser.click("button.toggle-btn.div-scroll");
       await sleep(500);
+      await h.solveRateLimitSliderIfPresent(
+        `getPages:after-scroll-click-${attempt}`,
+        2_000,
+      );
 
       const hasCounter = await browser.waitForFunction(
         `(() => { const el = document.querySelector('#scroll-page-counter'); return !!(el && el.textContent && el.textContent.includes('/')); })()`,
@@ -252,7 +309,7 @@ class SakuraMangasExtension implements HagitoriExtension {
     for (let p = 1; p <= numPages; p++) {
       const padded = String(p).padStart(3, "0");
       pageUrls.push(
-        `${h.BASE_URL}/imagens/${imageHash}/${padded}.${imageExtension}`
+        `${h.BASE_URL}/imagens/${imageAsset.hash}/${padded}.${imageAsset.extension}`
       );
     }
 
@@ -262,7 +319,8 @@ class SakuraMangasExtension implements HagitoriExtension {
       "Accept-Language": h.IMG_ACCEPT_LANG,
       "X-Requested-With": h.IMG_X_REQUESTED_WITH,
       "X-Signature-Version": h.IMG_X_SIGNATURE_VERSION,
-      "X-Realtime": h.generateXRealtime(),
+      "X-Realtimes": h.generateXRealtime(),
+      "X-Harry-Potter": h.IMG_X_HARRY_POTTER,
       Referer: fullUrl,
       "Sec-Fetch-Dest": "empty",
       "Sec-Fetch-Mode": "cors",
@@ -276,6 +334,7 @@ class SakuraMangasExtension implements HagitoriExtension {
       number: chapter.number,
       name: chapter.name,
       urls: pageUrls,
+      requestIntervalMs: h.REQUEST_INTERVAL_MS,
       useBrowser: false,
       headers: imgHeaders,
     });

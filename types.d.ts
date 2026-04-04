@@ -59,6 +59,7 @@ declare class Pages {
     urls: string[];
     headers?: Record<string, string>;
     useBrowser?: boolean;
+    requestIntervalMs?: number;
   });
   chapter_id: string;
   chapter_number: string;
@@ -66,6 +67,7 @@ declare class Pages {
   pages: string[];
   headers: Record<string, string> | null;
   useBrowser: boolean;
+  requestIntervalMs: number | null;
 }
 
 // ── HTTP (fetch) ───────────────────────────────────────────────────────────
@@ -202,6 +204,33 @@ interface NavigateOptions {
   timeout?: number;
 }
 
+type MouseButton = "left" | "middle" | "right";
+
+interface MousePoint {
+  /** X relative to the viewport in CSS pixels. */
+  x: number;
+  /** Y relative to the viewport in CSS pixels. */
+  y: number;
+}
+
+type MouseTarget = string | MousePoint;
+
+interface MouseButtonOptions {
+  /** Mouse button to use (default: "left"). */
+  button?: MouseButton;
+}
+
+interface MouseMoveOptions {
+  /** Number of intermediate mouse move events (default: 1). */
+  steps?: number;
+  /** Movement duration in milliseconds. `duration` is accepted as an alias. */
+  durationMs?: number;
+  /** Alias for `durationMs`. */
+  duration?: number;
+}
+
+interface DragOptions extends MouseButtonOptions, MouseMoveOptions {}
+
 declare const browser: {
   /** Intercepts requests matching the patterns when navigating to the URL. */
   interceptRequests(url: string, patterns: string[], options?: InterceptOptions): Promise<string>;
@@ -231,6 +260,26 @@ declare const browser: {
   evaluate(jsCode: string): Promise<string>;
   /** Clicks the first element matching the CSS selector on the active page. */
   click(selector: string): Promise<void>;
+  /**
+   * Moves the mouse to a CSS selector center or to viewport coordinates.
+   * Pass a string for selector or `{ x, y }` for absolute viewport coordinates.
+   */
+  mouseMove(target: MouseTarget, options?: MouseMoveOptions): Promise<void>;
+  /**
+   * Presses the mouse button at the given target.
+   * If target is omitted, uses the current cursor position.
+   */
+  mouseDown(target?: MouseTarget, options?: MouseButtonOptions): Promise<void>;
+  /**
+   * Releases the mouse button at the given target.
+   * If target is omitted, uses the current cursor position.
+   */
+  mouseUp(target?: MouseTarget, options?: MouseButtonOptions): Promise<void>;
+  /**
+   * Drags from one target to another using real mouse events.
+   * Targets can be selectors or viewport coordinates.
+   */
+  drag(from: MouseTarget, to: MouseTarget, options?: DragOptions): Promise<void>;
   /** Waits for a CSS selector to match an element. Returns true if found, false on timeout. */
   waitForSelector(selector: string, timeout?: number): Promise<boolean>;
   /** Polls until the JS expression returns a truthy value. Returns true if truthy, false on timeout. */

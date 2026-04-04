@@ -2,7 +2,7 @@
   "hagitori": {
     "displayName": "Sakura Mangás",
     "domains": ["sakuramangas.org"],
-    "version": 2,
+    "version": 3,
     "capabilities": ["browser"],
     "supportsDetails": true
   }
