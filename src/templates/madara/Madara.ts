@@ -92,7 +92,7 @@ export class Madara implements HagitoriExtension {
   async getChapters(mangaId: string): Promise<Chapter[]> {
     const mangaUrl = `${this.baseUrl}/${this.mangaPath}/${mangaId}/`;
 
-    let doc: HtmlDocument;
+    let doc: Document;
 
     if (this.useAjaxChapters) {
       const ajaxUrl = this.useNewChapterEndpoint
@@ -246,31 +246,31 @@ export class Madara implements HagitoriExtension {
     };
   }
 
-  protected parseTitle(doc: HtmlDocument): string {
+  protected parseTitle(doc: Document): string {
     const el = doc.selectOne(this.selectors.title);
     return el?.text().trim() ?? "";
   }
 
-  protected parseThumbnail(doc: HtmlDocument): string | undefined {
+  protected parseThumbnail(doc: Document): string | undefined {
     const el = doc.selectOne(this.selectors.thumbnail);
     if (!el) return undefined;
     return (
       el.attr("data-src") ??
       el.attr("data-lazy-src") ??
-      el.attr("srcset")?.split(" ").find((s) => s.startsWith("http")) ??
+      el.attr("srcset")?.split(" ").find((s: string) => s.startsWith("http")) ??
       el.attr("src") ??
       undefined
     );
   }
 
-  protected parseDescription(doc: HtmlDocument): string | undefined {
+  protected parseDescription(doc: Document): string | undefined {
     const el = doc.selectOne(this.selectors.description);
     if (!el) return undefined;
     const text = el.text().trim();
     return text || undefined;
   }
 
-  protected parseStatus(doc: HtmlDocument): string | undefined {
+  protected parseStatus(doc: Document): string | undefined {
     const els = doc.select(this.selectors.status);
     const last = els.length > 0 ? els[els.length - 1] : null;
     if (!last) return undefined;
@@ -290,10 +290,10 @@ export class Madara implements HagitoriExtension {
     return undefined;
   }
 
-  protected parseTags(doc: HtmlDocument): string[] {
+  protected parseTags(doc: Document): string[] {
     return doc
       .select(this.selectors.genre)
-      .map((el) => el.text().trim())
+      .map((el: Element) => el.text().trim())
       .filter(Boolean);
   }
 
