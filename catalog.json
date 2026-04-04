@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "updated_at": "2026-04-04T23:29:13.288Z",
+  "repo": "hagitori/hagitori-extensions",
+  "branch": "main",
+  "extensions": [
+    {
+      "id": "hagitori.multi.mangadex",
+      "name": "MangaDex",
+      "lang": "multi",
+      "version_id": 1,
+      "path": "builds/multi/mangadex",
+      "entry": "index.js",
+      "requires": [],
+      "icon": "icon.png",
+      "domains": [
+        "mangadex.org",
+        "api.mangadex.org"
+      ],
+      "features": [],
+      "supports_details": true,
+      "languages": [
+        "en",
+        "pt-br",
+        "es",
+        "es-la",
+        "fr",
+        "de",
+        "it",
+        "ru",
+        "ja",
+        "ko",
+        "zh",
+        "zh-hk",
+        "ar",
+        "id",
+        "pl",
+        "th",
+        "tr",
+        "vi",
+        "uk",
+        "hu",
+        "nl",
+        "sv",
+        "cs",
+        "ro",
+        "fi",
+        "el",
+        "he",
+        "hi",
+        "ms",
+        "tl",
+        "no",
+        "da",
+        "bg",
+        "my",
+        "mn",
+        "fa",
+        "lt",
+        "ca",
+        "bn",
+        "ne"
+      ],
+      "files": {
+        "icon.png": "dcdf38c24f9fce2d02db71444fbf217969aeaf0be9033e8f349633ece1dc8ffa",
+        "index.js": "b9ae42a5a89c38223555d1546f39891d27cd97a9002fee366d3a9b6179d284da",
+        "package.json": "e2b0c481635dfc081f206a7cd14b52d5662ca02308072ea500b8da31eebffa3d"
+      },
+      "min_app_version": null
+    },
+    {
+      "id": "hagitori.pt-br.mangalivre",
+      "name": "Manga Livre",
+      "lang": "pt-br",
+      "version_id": 1,
+      "path": "builds/pt-br/mangalivre",
+      "entry": "index.js",
+      "requires": [],
+      "icon": "icon.png",
+      "domains": [
+        "mangalivre.tv"
+      ],
+      "features": [
+        "browser"
+      ],
+      "supports_details": true,
+      "languages": [],
+      "files": {
+        "icon.png": "56533fe1683c82afdea37b6b70bda2dae0f331c9f915616ec251abcc06008a91",
+        "index.js": "ac7bced0f7175e36cf71845ba0c32dffc8ab7e1c47a82aa358f5519f72c2d5e6",
+        "package.json": "06368081a67400e4d8587ad3e19196acb691a3d2d883f5214e73ba16c8d7c511"
+      },
+      "min_app_version": null
+    },
+    {
+      "id": "hagitori.pt-br.sakuramangas",
+      "name": "Sakura Mangás",
+      "lang": "pt-br",
+      "version_id": 3,
+      "path": "builds/pt-br/sakuramangas",
+      "entry": "index.js",
+      "requires": [],
+      "icon": "icon.png",
+      "domains": [
+        "sakuramangas.org"
+      ],
+      "features": [
+        "browser"
+      ],
+      "supports_details": true,
+      "languages": [],
+      "files": {
+        "icon.png": "1b4ada85d309411e76f01c71f4ca15567198301308b8b0db8ca8ea7ea88501bd",
+        "index.js": "6f45064e17bff8a692384379cda977c6d4a34f035c97f60efbbc335071864378",
+        "package.json": "0506798ba870dc2ae051e4e8052ff8c85551ab2b52219ae0957d3114b61ab751"
+      },
+      "min_app_version": null
+    }
+  ]
+}
