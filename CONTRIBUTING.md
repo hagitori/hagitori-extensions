@@ -315,6 +315,21 @@ const result = JSON.parse(await browser.evaluate(`
 // click an element on the active page
 await browser.click("#load-more");
 
+// move the mouse to an element or viewport coordinates
+await browser.mouseMove(".slider-handle");
+await browser.mouseMove({ x: 320, y: 240 }, { steps: 8, durationMs: 300 });
+
+// low-level press / move / release flow
+await browser.mouseDown(".slider-handle");
+await browser.mouseMove({ x: 520, y: 240 }, { steps: 12, durationMs: 400 });
+await browser.mouseUp();
+
+// one-shot drag helper
+await browser.drag(".slider-handle", { x: 520, y: 240 }, {
+  steps: 12,
+  durationMs: 400,
+});
+
 // wait for an element to appear (returns true/false)
 const found = await browser.waitForSelector(".new-items", 15000);
 
@@ -339,7 +354,8 @@ await browser.close();
 - `bypassCloudflare()` keeps the browser alive — subsequent calls reuse it, inheriting CF cookies.
 - `intercept*()` calls auto-detect CF challenges and solve them in-place before intercepting.
 - `interceptRequests()` and `interceptResponses()` return raw JSON strings; parse with `JSON.parse()`.
-- Active-page methods (`navigate`, `evaluate`, `click`, `waitFor*`) share the same persistent page. Calling `browser.close()` closes it.
+- Active-page methods (`navigate`, `evaluate`, `click`, `mouseMove`, `mouseDown`, `mouseUp`, `drag`, `waitFor*`) share the same persistent page. Calling `browser.close()` closes it.
+- Mouse targets accept either a CSS selector string or viewport coordinates `{ x, y }`.
 
 ### Cookies — `cookies`
 
